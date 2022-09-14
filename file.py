@@ -1,13 +1,22 @@
 from time import sleep
 import json
 import paho.mqtt.client as mqtt
-import pyaudio
+#import pyaudio
 import sys
 import numpy as np
 import aubio
 from random import randint
 from flask import Flask, redirect
 from threading import Thread
+
+mqtt_username = "user"
+mqtt_pw = "password"
+mqtt_ip = "192.168.0.1"
+mqtt_port = 1883
+start_color = "174,0,0"
+friendly_name = "Colour Light"
+http_source_url = "http://192.168.0.1:5001/"
+webserver_port = 5000
 
 app = Flask(__name__)
 
@@ -18,19 +27,21 @@ def convert_to_hex(value):
 
 # Set up MQTT client
 client = mqtt.Client()
-client.connect("1.2.3.4", 1883)
+client.username_pw_set(mqtt_username,mqtt_pw)
+client.connect(mqtt_ip, mqtt_port)
 
 colour = None
 
 
 devices = [
-    {"name": "livingroom", "topic": "cmnd/livingroom/Backlog", "type": "tasmota"},
+#    {"name": "livingroom", "topic": "cmnd/livingroom/Backlog", "type": "tasmota"},
     {
-        "name": "led_strip",
-        "topic": "zigbee2mqtt/LED Strip/set",
-        "type": "zigbee",
-    },
-    {"name": "wled", "topic": "wled/5m/col", "colour": convert_to_hex(colour)},
+        "name": friendly_name,
+        "topic": "zigbee2mqtt/" + friendly_name + "/set",
+        "type": "zigbee"
+    }
+#    ,
+#    {"name": "wled", "topic": "wled/5m/col", "colour": convert_to_hex(colour)},
 ]
 
 colour_values = [
@@ -73,7 +84,7 @@ def get_device_config(type, colour):
                 "state": "ON",
                 "brightness": 255,
                 "transition": 0.001,
-                "color": {"rgb": colour},
+                "color": {"rgb": colour}
             }
         )
 
@@ -83,23 +94,23 @@ def change_colour(value):
     return colour_values[number]
 
 
-p = pyaudio.PyAudio()
+#p = pyaudio.PyAudio()
 
 BUFFER_SIZE = 1024
 CHANNELS = 1
-FORMAT = pyaudio.paFloat32
+#FORMAT = pyaudio.paFloat32
 METHOD = "default"
 SAMPLE_RATE = 44100
 HOP_SIZE = BUFFER_SIZE // 2
 PERIOD_SIZE_IN_FRAME = HOP_SIZE
 
-mic_input = p.open(
-    format=FORMAT,
-    channels=CHANNELS,
-    rate=SAMPLE_RATE,
-    input=True,
-    frames_per_buffer=PERIOD_SIZE_IN_FRAME,
-)
+#mic_input = p.open(
+#    format=FORMAT,
+#    channels=CHANNELS,
+#    rate=SAMPLE_RATE,
+#    input=True,
+#    frames_per_buffer=PERIOD_SIZE_IN_FRAME,
+#)
 
 go = True 
 
@@ -119,15 +130,19 @@ def run():
     pitch_detect.set_unit("Hz")
     pitch_detect.set_silence(-40)
 
-    print("Listening to mic...")
+ #   print("Listening to mic...")
+    print("Listening to http stream...")
 
     # Set variable for last colour used
     last_colour = ""
+    
+    src = aubio.source(http_source_url, hop_size=512)
 
     while go:
         try:
-            audio_buffer = mic_input.read(PERIOD_SIZE_IN_FRAME)
-            samples = np.frombuffer(audio_buffer, dtype=aubio.float_type)
+#            audio_buffer = mic_input.read(PERIOD_SIZE_IN_FRAME)
+#            samples = np.frombuffer(audio_buffer, dtype=aubio.float_type)
+            samples = src()
 
             # Detect a beat
             is_beat = tempo_detect(samples)
@@ -192,7 +207,7 @@ def index():
 </body>
     """
 
-app.run(host='0.0.0.0',debug=True)
+app.run(host='0.0.0.0', port=webserver_port, debug=True)
 
-mic_input.close()
-p.terminate()
+#mic_input.close()
+#p.terminate()
