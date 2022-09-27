@@ -142,7 +142,7 @@ def run():
         try:
 #            audio_buffer = mic_input.read(PERIOD_SIZE_IN_FRAME)
 #            samples = np.frombuffer(audio_buffer, dtype=aubio.float_type)
-            samples = src()
+            samples, read = src()
 
             # Detect a beat
             is_beat = tempo_detect(samples)
